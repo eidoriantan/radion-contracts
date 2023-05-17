@@ -1,0 +1,151 @@
+{ parameter
+    (or (or (or %admin (or (unit %confirm_admin) (bool %pause)) (address %set_admin))
+            (pair %distribute
+               (list %royalties (pair (address %address) (nat %percentage)))
+               (mutez %amount)))
+        (address %set_residual)) ;
+  storage
+    (pair (option %admin
+             (pair (pair (address %admin) (bool %paused)) (option %pending_admin address)))
+          (address %residual_address)) ;
+  code { LAMBDA
+           (pair mutez address)
+           operation
+           { UNPAIR ;
+             SWAP ;
+             CONTRACT unit ;
+             IF_NONE { PUSH string "ADDRESS_DOES_NOT_RESOLVE" ; FAILWITH } {} ;
+             SWAP ;
+             UNIT ;
+             TRANSFER_TOKENS } ;
+         LAMBDA
+           (option (pair (pair address bool) (option address)))
+           unit
+           { IF_NONE
+               { UNIT }
+               { CAR ;
+                 CAR ;
+                 SENDER ;
+                 COMPARE ;
+                 NEQ ;
+                 IF { PUSH string "NOT_AN_ADMIN" ; FAILWITH } { UNIT } } } ;
+         DIG 2 ;
+         UNPAIR ;
+         IF_LEFT
+           { IF_LEFT
+               { DIG 3 ;
+                 DROP ;
+                 DUP 2 ;
+                 CAR ;
+                 SWAP ;
+                 IF_LEFT
+                   { IF_LEFT
+                       { DIG 3 ;
+                         DROP 2 ;
+                         IF_NONE
+                           { PUSH string "NO_ADMIN_CAPABILITIES_CONFIGURED" ; FAILWITH }
+                           { DUP ;
+                             CDR ;
+                             IF_NONE
+                               { DROP ; PUSH string "NO_PENDING_ADMIN" ; FAILWITH }
+                               { SENDER ;
+                                 COMPARE ;
+                                 EQ ;
+                                 IF { NONE address ; SWAP ; CAR ; CDR ; SENDER ; PAIR ; PAIR ; SOME }
+                                    { DROP ; PUSH string "NOT_A_PENDING_ADMIN" ; FAILWITH } } } }
+                       { DUP 2 ;
+                         DIG 4 ;
+                         SWAP ;
+                         EXEC ;
+                         DROP ;
+                         SWAP ;
+                         IF_NONE
+                           { DROP ; PUSH string "NO_ADMIN_CAPABILITIES_CONFIGURED" ; FAILWITH }
+                           { DUP ; CDR ; DUG 2 ; CAR ; CAR ; PAIR ; PAIR ; SOME } } }
+                   { DUP 2 ;
+                     DIG 4 ;
+                     SWAP ;
+                     EXEC ;
+                     DROP ;
+                     SWAP ;
+                     IF_NONE
+                       { DROP ; PUSH string "NO_ADMIN_CAPABILITIES_CONFIGURED" ; FAILWITH }
+                       { SWAP ; SOME ; SWAP ; CAR ; PAIR ; SOME } } ;
+                 NIL operation ;
+                 DUG 2 ;
+                 UPDATE 1 }
+               { DIG 2 ;
+                 DROP ;
+                 DUP 2 ;
+                 CAR ;
+                 IF_NONE {} { CAR ; CDR ; IF { PUSH string "PAUSED" ; FAILWITH } {} } ;
+                 PUSH string "AMOUNT_UNMATCH" ;
+                 DUP 2 ;
+                 CDR ;
+                 AMOUNT ;
+                 COMPARE ;
+                 NEQ ;
+                 IF { DROP } { FAILWITH } ;
+                 PUSH nat 0 ;
+                 PUSH mutez 0 ;
+                 DUP 3 ;
+                 CDR ;
+                 NIL operation ;
+                 PAIR 4 ;
+                 DUP 2 ;
+                 CAR ;
+                 ITER { SWAP ;
+                        PUSH nat 10000 ;
+                        DUP 3 ;
+                        CDR ;
+                        DUP 3 ;
+                        GET 3 ;
+                        MUL ;
+                        EDIV ;
+                        IF_NONE { PUSH string "DIV by 0" ; FAILWITH } {} ;
+                        CAR ;
+                        PUSH mutez 0 ;
+                        DUP 2 ;
+                        COMPARE ;
+                        GT ;
+                        IF { DUP 2 ; CAR ; DUP 4 ; CAR ; DUP 3 ; PAIR ; DUP 8 ; SWAP ; EXEC ; CONS }
+                           { DUP 2 ; CAR } ;
+                        DUP 3 ;
+                        SWAP ;
+                        UPDATE 1 ;
+                        SWAP ;
+                        DUP 3 ;
+                        GET 5 ;
+                        ADD ;
+                        UPDATE 5 ;
+                        DIG 2 ;
+                        CDR ;
+                        DIG 2 ;
+                        GET 6 ;
+                        ADD ;
+                        UPDATE 6 } ;
+                 DUP ;
+                 GET 5 ;
+                 DIG 2 ;
+                 CDR ;
+                 SUB_MUTEZ ;
+                 IF_NONE { PUSH mutez 0 } {} ;
+                 PUSH mutez 0 ;
+                 DUP 2 ;
+                 COMPARE ;
+                 GT ;
+                 IF { SWAP ; CAR ; DUP 3 ; CDR ; DIG 2 ; PAIR ; DIG 3 ; SWAP ; EXEC ; CONS }
+                    { DIG 3 ; DROP 2 ; CAR } ;
+                 SWAP } ;
+             SWAP }
+           { DIG 3 ;
+             DROP ;
+             DUP 2 ;
+             CAR ;
+             DIG 3 ;
+             SWAP ;
+             EXEC ;
+             DROP ;
+             UPDATE 2 ;
+             NIL operation } ;
+         PAIR } }
