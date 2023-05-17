@@ -654,7 +654,7 @@ let set_residual (residual_address, storage : address * storage) : operation lis
   let new_s = { storage with residual_address = residual_address; } in
   ([] : operation list), new_s
 
-let fixed_price_sale_tez_main (p, storage : market_entry_points * storage) : operation list * storage = match p with
+let main (p, storage : market_entry_points * storage) : operation list * storage = match p with
   | Sell sales ->
     let _u : unit = fail_if_paused(storage.admin) in
     deposit_for_sale_batch(sales, storage)
